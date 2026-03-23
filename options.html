@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>墨墨背单词 - 设置</title>
+    <style>
+      :root {
+        --page-bg: #f5efe4;
+        --card-bg: rgba(255, 255, 255, 0.9);
+        --card-border: rgba(92, 69, 38, 0.12);
+        --text: #2f251b;
+        --muted: #786451;
+        --primary: #ad6420;
+        --primary-dark: #8f5117;
+        --ok-bg: #eef8f1;
+        --ok-text: #20663b;
+        --warn-bg: #fff7e5;
+        --warn-text: #946200;
+        --error-bg: #fff0ed;
+        --error-text: #b33a28;
+        --neutral-bg: rgba(255, 255, 255, 0.78);
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Segoe UI", sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at top left, rgba(255, 255, 255, 0.7), transparent 32%),
+          linear-gradient(180deg, #f7f1e8 0%, var(--page-bg) 100%);
+      }
+      main { max-width: 1180px; margin: 0 auto; padding: 28px 22px 44px; }
+      h1 { font-size: 38px; margin: 0; }
+      h2 { font-size: 26px; margin: 0; }
+      p { margin: 0; }
+      label { display: block; font-size: 13px; font-weight: 700; margin: 14px 0 6px; }
+      input[type="text"],
+      input[type="number"] {
+        width: 100%;
+        padding: 12px 14px;
+        border: 1px solid var(--card-border);
+        border-radius: 12px;
+        font-size: 14px;
+        background: rgba(255, 255, 255, 0.9);
+        color: var(--text);
+      }
+      button {
+        border: 1px solid var(--card-border);
+        background: rgba(255, 255, 255, 0.9);
+        color: var(--text);
+        border-radius: 999px;
+        min-height: 46px;
+        padding: 0 18px;
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 1;
+        white-space: nowrap;
+        cursor: pointer;
+      }
+      button.primary {
+        background: var(--primary);
+        color: #fff;
+        border-color: var(--primary);
+      }
+      button.primary:hover { background: var(--primary-dark); }
+      .hero { margin-bottom: 18px; }
+      .eyebrow {
+        display: inline-block;
+        margin-bottom: 10px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        color: var(--primary-dark);
+        background: rgba(255, 255, 255, 0.72);
+      }
+      .subtitle {
+        margin-top: 10px;
+        max-width: 860px;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+      .stack { display: grid; gap: 18px; margin-top: 20px; }
+      .card {
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 22px;
+        padding: 20px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 10px 28px rgba(123, 90, 48, 0.08);
+      }
+      .step {
+        display: grid;
+        gap: 18px;
+      }
+      .step-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 16px;
+        align-items: start;
+      }
+      .step-title {
+        display: flex;
+        gap: 14px;
+        align-items: flex-start;
+        min-width: 0;
+      }
+      .step-copy {
+        max-width: 760px;
+      }
+      .step-index {
+        flex: none;
+        width: 42px;
+        height: 42px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 14px;
+        background: linear-gradient(180deg, #bf7a33 0%, #9d5c1d 100%);
+        color: #fff;
+        font-size: 18px;
+        font-weight: 700;
+        box-shadow: 0 10px 20px rgba(173, 100, 32, 0.22);
+      }
+      .hint {
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.6;
+      }
+      .actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        flex-shrink: 0;
+        margin-top: 0;
+      }
+      .form-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 16px;
+        align-items: end;
+      }
+      .selection-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+      }
+      .selection-copy {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.7;
+      }
+      button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      .notice {
+        padding: 12px 14px;
+        border-radius: 14px;
+        font-size: 13px;
+        line-height: 1.6;
+        background: var(--neutral-bg);
+        color: var(--muted);
+      }
+      .notice[data-tone="success"] {
+        background: var(--ok-bg);
+        color: var(--ok-text);
+      }
+      .notice[data-tone="warning"] {
+        background: var(--warn-bg);
+        color: var(--warn-text);
+      }
+      .notice[data-tone="error"] {
+        background: var(--error-bg);
+        color: var(--error-text);
+      }
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .summary-item {
+        padding: 14px;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.72);
+        border: 1px solid rgba(122, 90, 48, 0.08);
+      }
+      .summary-item span {
+        display: block;
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+      .summary-item strong {
+        display: block;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+      .toolbar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+        align-items: end;
+      }
+      .list {
+        max-height: 380px;
+        overflow: auto;
+        display: grid;
+        gap: 10px;
+      }
+      .notepad-item,
+      .word-item {
+        border: 1px solid rgba(122, 90, 48, 0.12);
+        background: rgba(255, 255, 255, 0.78);
+        border-radius: 16px;
+        padding: 14px;
+      }
+      .notepad-item label {
+        margin: 0;
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        cursor: pointer;
+      }
+      .notepad-item input { margin-top: 3px; }
+      .notepad-title { font-size: 15px; font-weight: 700; }
+      .notepad-item.is-selected {
+        border-color: rgba(173, 100, 32, 0.46);
+        background: linear-gradient(180deg, rgba(255, 249, 239, 0.96), rgba(245, 231, 203, 0.88));
+        box-shadow: 0 12px 26px rgba(173, 100, 32, 0.12);
+      }
+      .notepad-meta,
+      .empty {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.6;
+      }
+      .selected-panel {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 16px;
+        align-items: center;
+        padding: 16px;
+        border-radius: 18px;
+        border: 1px solid rgba(173, 100, 32, 0.14);
+        background: linear-gradient(180deg, rgba(255, 249, 238, 0.95), rgba(245, 233, 207, 0.92));
+      }
+      .selected-panel strong {
+        display: block;
+        font-size: 18px;
+        margin-bottom: 6px;
+      }
+      .selected-panel .hint {
+        margin-top: 0;
+      }
+      .word-list {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        max-height: 420px;
+        overflow-y: auto;
+        align-content: start;
+        padding-right: 4px;
+        scrollbar-gutter: stable;
+      }
+      .word-item { padding: 10px 12px; font-size: 14px; }
+      @media (max-width: 860px) {
+        .form-grid,
+        .step-head,
+        .selected-panel { grid-template-columns: 1fr; }
+        .summary-grid { grid-template-columns: 1fr; }
+        .word-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+      @media (max-width: 560px) {
+        .word-list { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header class="hero">
+        <div class="eyebrow">maimemo-chrome</div>
+        <h1>墨墨背单词设置</h1>
+        <p class="subtitle">
+          现在只围绕两个核心能力工作：右键把选中的英文单词加入当前云词本，以及在网页中高亮当前云词本里的单词。
+        </p>
+      </header>
+
+      <div class="stack">
+        <section class="card step">
+          <div class="step-head">
+            <div class="step-title">
+              <div class="step-index">1</div>
+              <div class="step-copy">
+                <h2>先保存 Token</h2>
+                <p class="hint">先完成鉴权。保存成功后，插件会自动尝试读取全部云词本。</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <div>
+              <label for="maimemoToken">Token</label>
+              <input
+                type="text"
+                id="maimemoToken"
+                placeholder="在墨墨背单词 App 中申请开放 API Token"
+              />
+            </div>
+            <div class="actions">
+              <button id="saveToken" class="primary">保存 Token</button>
+            </div>
+          </div>
+
+          <div id="tokenStatus" class="notice" data-tone="warning">还没有保存 Token。</div>
+
+          <div class="summary-grid">
+            <div class="summary-item">
+              <span>连接状态</span>
+              <strong id="connectionStatus">未配置</strong>
+            </div>
+            <div class="summary-item">
+              <span>当前词本</span>
+              <strong id="currentNotepadSummary">未选择</strong>
+            </div>
+            <div class="summary-item">
+              <span>最近同步</span>
+              <strong id="lastSyncSummary">未同步</strong>
+            </div>
+            <div class="summary-item">
+              <span>缓存词数</span>
+              <strong id="wordCountSummary">0</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="card step">
+          <div class="step-head">
+            <div class="step-title">
+              <div class="step-index">2</div>
+              <div class="step-copy">
+                <h2>获取全部云词本</h2>
+                <p class="hint">保存 Token 后会自动读取一次，你也可以手动刷新词本列表。</p>
+              </div>
+            </div>
+            <div class="actions">
+              <button id="refreshNotepads" class="primary">获取词本</button>
+            </div>
+          </div>
+
+          <div class="toolbar">
+            <div>
+              <label for="notepadFilter">筛选词本</label>
+              <input type="text" id="notepadFilter" placeholder="按标题或标签搜索词本" />
+            </div>
+          </div>
+
+          <div id="notepadStatus" class="notice" data-tone="neutral">还没有读取云词本列表。</div>
+          <div id="notepadList" class="list"></div>
+        </section>
+
+        <section class="card step">
+          <div class="step-head">
+            <div class="step-title">
+              <div class="step-index">3</div>
+              <div class="step-copy">
+                <h2>保存同步词本</h2>
+                <p class="hint">选择一个云词本并保存。保存时会把云端单词全量同步到本地缓存，网页高亮只读取本地缓存，不实时请求云端。</p>
+              </div>
+            </div>
+            <div class="actions">
+              <button id="saveCurrentNotepad" class="primary">保存词本</button>
+            </div>
+          </div>
+
+          <div class="selected-panel">
+            <div>
+              <strong id="pendingNotepadTitle">还没有选择云词本</strong>
+              <div class="hint" id="pendingNotepadMeta">请先在上面的云词本列表中选中一个词本。</div>
+            </div>
+            <button id="syncNow">立即同步</button>
+          </div>
+
+          <div class="selection-grid">
+            <div>
+              <label for="syncIntervalHours">同步周期（小时）</label>
+              <input type="number" id="syncIntervalHours" placeholder="默认 6" min="1" max="168" />
+              <p class="selection-copy">保存当前词本时会一并保存这个周期。后台会按这个周期把云词本重新同步到本地缓存，减少实时请求云端 API。</p>
+            </div>
+          </div>
+
+          <div id="selectionStatus" class="notice" data-tone="warning">等待你选择一个待同步的云词本。</div>
+        </section>
+
+        <section class="card step">
+          <div class="step-head">
+            <div class="step-title">
+              <div class="step-index">4</div>
+              <div class="step-copy">
+                <h2>本地缓存结果</h2>
+                <p class="hint">这里展示的是当前词本已经同步到本地缓存的单词，网页高亮直接使用这份列表。</p>
+              </div>
+            </div>
+            <div class="actions">
+              <button id="copyWords">复制词表</button>
+            </div>
+          </div>
+
+          <div class="toolbar">
+            <div>
+              <label for="wordFilter">筛选单词</label>
+              <input type="text" id="wordFilter" placeholder="输入关键字过滤单词" />
+            </div>
+          </div>
+
+          <div id="wordsMeta" class="notice" data-tone="neutral">缓存词数：0；当前显示：0</div>
+          <div id="wordsList" class="word-list"></div>
+        </section>
+      </div>
+    </main>
+
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

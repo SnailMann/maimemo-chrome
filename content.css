@@ -1,0 +1,90 @@
+.maimemo-highlight {
+  color: #b42318 !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  text-decoration: none !important;
+}
+
+.maimemo-selection-actions {
+  position: fixed;
+  z-index: 2147483646;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
+  padding: 5px;
+  border-radius: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.1);
+  backdrop-filter: blur(4px);
+}
+
+.maimemo-selection-actions[hidden] {
+  display: none;
+}
+
+.maimemo-selection-button {
+  appearance: none;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: #fff;
+  color: #2f251b;
+  width: 92px;
+  min-height: 30px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.maimemo-selection-button:hover {
+  background: #fff8ef;
+}
+
+.maimemo-selection-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.maimemo-selection-button--primary {
+  color: #fff;
+  border-color: #ad6420;
+  background: #ad6420;
+}
+
+.maimemo-selection-button--primary:hover {
+  background: #8f5117;
+}
+
+.maimemo-toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 2147483647;
+  pointer-events: none;
+}
+
+.maimemo-toast {
+  min-width: 220px;
+  max-width: 320px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.5;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.24);
+  background: rgba(15, 23, 42, 0.92);
+}
+
+.maimemo-toast--success {
+  background: rgba(22, 101, 52, 0.94);
+}
+
+.maimemo-toast--error {
+  background: rgba(153, 27, 27, 0.94);
+}

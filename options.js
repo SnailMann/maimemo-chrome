@@ -33,7 +33,7 @@ function request(type, payload) {
 function explainError(code, detail = "") {
   if (code === "MISSING_TOKEN") return "请先填写并保存 Token。";
   if (code === "MISSING_CURRENT_NOTEPAD") return "请先选择一个云词本。";
-  if (code === "INVALID_WORD") return "请先选中一个英文单词。";
+  if (code === "INVALID_WORD") return "请先选中一个英文单词或词组。";
   if (code === "NOTEPAD_NOT_FOUND" || code === "common_not_found") {
     return "当前云词本不存在或已被删除，请重新获取云词本列表后再选择。";
   }

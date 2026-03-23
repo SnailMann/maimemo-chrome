@@ -23,11 +23,18 @@ const SKIP_TAGS = new Set([
 ]);
 const WORD_PATTERN = /[A-Za-z]+(?:['’-][A-Za-z]+)*/g;
 const HAS_LETTER_PATTERN = /[A-Za-z]/;
+const WHITESPACE_ONLY_PATTERN = /^\s+$/;
+const MAX_ACTIONABLE_TERM_LENGTH = 64;
+const MAX_ACTIONABLE_TERM_TOKENS = 5;
 
 let currentStoredWordSet = new Set();
 let currentBlacklistSet = new Set();
 let currentWordSet = new Set();
 let optimisticWordSet = new Set();
+let singleWordSet = new Set();
+let phraseTrieRoot = createPhraseTrieNode();
+let hasPhraseHighlights = false;
+let maxPhraseTokens = 1;
 let isRendering = false;
 let observer = null;
 let toastTimer = null;
@@ -38,10 +45,24 @@ let fullRenderTimer = null;
 let selectionActions = null;
 
 function normalizeWord(rawWord) {
-  return String(rawWord || "")
+  const normalized = String(rawWord || "")
     .trim()
     .replace(/[’]/g, "'")
-    .toLowerCase();
+    .replace(/\s+/g, " ");
+
+  if (!normalized) return "";
+  if (!/^[A-Za-z]+(?:['-][A-Za-z]+)*(?: [A-Za-z]+(?:['-][A-Za-z]+)*)*$/.test(normalized)) {
+    return "";
+  }
+
+  return normalized.toLowerCase();
+}
+
+function createPhraseTrieNode() {
+  return {
+    children: new Map(),
+    terminal: false
+  };
 }
 
 function toNormalizedSet(words) {
@@ -58,6 +79,36 @@ function recomputeHighlightWordSet() {
   currentWordSet = new Set(
     Array.from(mergedWordSet).filter(word => !currentBlacklistSet.has(word))
   );
+  rebuildHighlightMatchers();
+}
+
+function rebuildHighlightMatchers() {
+  singleWordSet = new Set();
+  phraseTrieRoot = createPhraseTrieNode();
+  hasPhraseHighlights = false;
+  maxPhraseTokens = 1;
+
+  currentWordSet.forEach((term) => {
+    if (!term.includes(" ")) {
+      singleWordSet.add(term);
+      return;
+    }
+
+    const tokens = term.split(" ");
+    hasPhraseHighlights = true;
+    if (tokens.length > maxPhraseTokens) {
+      maxPhraseTokens = tokens.length;
+    }
+
+    let node = phraseTrieRoot;
+    tokens.forEach((token) => {
+      if (!node.children.has(token)) {
+        node.children.set(token, createPhraseTrieNode());
+      }
+      node = node.children.get(token);
+    });
+    node.terminal = true;
+  });
 }
 
 function setStoredWords(words) {
@@ -135,32 +186,81 @@ function clearHighlights() {
 }
 
 function buildHighlightFragment(text) {
-  const fragment = document.createDocumentFragment();
-  let lastIndex = 0;
-  let matched = false;
-  let match;
+  const tokens = [];
+  let wordMatch;
+  let previousTokenEnd = -1;
 
   WORD_PATTERN.lastIndex = 0;
+  while ((wordMatch = WORD_PATTERN.exec(text))) {
+    tokens.push({
+      start: wordMatch.index,
+      end: wordMatch.index + wordMatch[0].length,
+      normalized: normalizeWord(wordMatch[0]),
+      joinableWithPrevious: previousTokenEnd >= 0
+        ? WHITESPACE_ONLY_PATTERN.test(text.slice(previousTokenEnd, wordMatch.index))
+        : false
+    });
+    previousTokenEnd = wordMatch.index + wordMatch[0].length;
+  }
 
-  while ((match = WORD_PATTERN.exec(text))) {
-    const word = match[0];
-    if (!currentWordSet.has(normalizeWord(word))) continue;
+  if (!tokens.length) return null;
 
-    matched = true;
+  const ranges = [];
+  for (let tokenIndex = 0; tokenIndex < tokens.length; tokenIndex += 1) {
+    const token = tokens[tokenIndex];
+    let longestPhraseEndIndex = -1;
 
-    if (match.index > lastIndex) {
-      fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+    if (hasPhraseHighlights) {
+      let node = phraseTrieRoot.children.get(token.normalized);
+      let walkIndex = tokenIndex;
+
+      while (node) {
+        if (node.terminal) {
+          longestPhraseEndIndex = walkIndex;
+        }
+
+        walkIndex += 1;
+        if (walkIndex >= tokens.length) break;
+        if (walkIndex - tokenIndex >= maxPhraseTokens) break;
+        if (!tokens[walkIndex].joinableWithPrevious) break;
+
+        node = node.children.get(tokens[walkIndex].normalized);
+      }
+    }
+
+    if (longestPhraseEndIndex > tokenIndex) {
+      ranges.push({
+        start: token.start,
+        end: tokens[longestPhraseEndIndex].end
+      });
+      tokenIndex = longestPhraseEndIndex;
+      continue;
+    }
+
+    if (singleWordSet.has(token.normalized)) {
+      ranges.push({
+        start: token.start,
+        end: token.end
+      });
+    }
+  }
+
+  if (!ranges.length) return null;
+
+  const fragment = document.createDocumentFragment();
+  let lastIndex = 0;
+  ranges.forEach((range) => {
+    if (range.start > lastIndex) {
+      fragment.appendChild(document.createTextNode(text.slice(lastIndex, range.start)));
     }
 
     const mark = document.createElement("mark");
     mark.className = HIGHLIGHT_CLASS;
-    mark.textContent = word;
+    mark.textContent = text.slice(range.start, range.end);
     fragment.appendChild(mark);
 
-    lastIndex = match.index + word.length;
-  }
-
-  if (!matched) return null;
+    lastIndex = range.end;
+  });
 
   if (lastIndex < text.length) {
     fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
@@ -321,13 +421,11 @@ function scheduleFullRender() {
 }
 
 function normalizeSelectedWord(rawWord) {
-  const matches = String(rawWord || "")
-    .trim()
-    .replace(/[’]/g, "'")
-    .match(/[A-Za-z]+(?:['-][A-Za-z]+)*/g);
-
-  if (!matches || matches.length !== 1) return "";
-  return matches[0].toLowerCase();
+  const normalized = normalizeWord(rawWord);
+  if (!normalized) return "";
+  if (normalized.length > MAX_ACTIONABLE_TERM_LENGTH) return "";
+  if (normalized.split(" ").length > MAX_ACTIONABLE_TERM_TOKENS) return "";
+  return normalized;
 }
 
 function getCurrentSelectionWord() {
@@ -357,6 +455,15 @@ function getSelectionHighlightRoot() {
   const container = selection.getRangeAt(0).commonAncestorContainer;
   if (!container) return document.body;
   return container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
+}
+
+function shouldIgnoreSelectionTarget(target) {
+  if (!target || target.nodeType !== Node.ELEMENT_NODE) return false;
+  if (target.closest(`.${ACTIONS_CLASS}`)) return true;
+  if (target.closest(`.${TOAST_CONTAINER_CLASS}`)) return true;
+  if (target.closest(`.${HIGHLIGHT_CLASS}`)) return false;
+  if (target.isContentEditable) return true;
+  return SKIP_TAGS.has(target.tagName.toLowerCase());
 }
 
 function getSelectionActions() {
@@ -559,6 +666,14 @@ function initObserver() {
 }
 
 function handleDoubleClick(event) {
+  const target = event.target && event.target.nodeType === Node.ELEMENT_NODE
+    ? event.target
+    : event.target && event.target.parentElement;
+  if (shouldIgnoreSelectionTarget(target)) {
+    hideSelectionActions();
+    return;
+  }
+
   window.setTimeout(() => {
     const word = getCurrentSelectionWord();
     if (!word) {
@@ -575,6 +690,35 @@ function handleDoubleClick(event) {
     };
 
     showSelectionActions(word, rect);
+  }, 0);
+}
+
+function handleSelectionMouseUp(event) {
+  if (selectionActions && selectionActions.contains(event.target)) return;
+  const target = event.target && event.target.nodeType === Node.ELEMENT_NODE
+    ? event.target
+    : event.target && event.target.parentElement;
+  if (shouldIgnoreSelectionTarget(target)) {
+    hideSelectionActions();
+    return;
+  }
+
+  window.setTimeout(() => {
+    const term = getCurrentSelectionWord();
+    if (!term || !term.includes(" ")) {
+      hideSelectionActions();
+      return;
+    }
+
+    const rect = getSelectionRect() || {
+      left: event.clientX,
+      top: event.clientY,
+      bottom: event.clientY,
+      width: 0,
+      height: 0
+    };
+
+    showSelectionActions(term, rect);
   }, 0);
 }
 
@@ -608,9 +752,10 @@ function bindSelectionActions() {
     }
   });
 
-  document.addEventListener("dblclick", handleDoubleClick, true);
-  document.addEventListener("mousedown", handlePointerDown, true);
-  window.addEventListener("scroll", hideSelectionActions, true);
+  document.addEventListener("dblclick", handleDoubleClick, { capture: true, passive: true });
+  document.addEventListener("mouseup", handleSelectionMouseUp, { capture: true, passive: true });
+  document.addEventListener("mousedown", handlePointerDown, { capture: true, passive: true });
+  window.addEventListener("scroll", hideSelectionActions, { capture: true, passive: true });
   window.addEventListener("blur", hideSelectionActions);
 }
 

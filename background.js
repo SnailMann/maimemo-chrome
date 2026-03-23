@@ -245,7 +245,7 @@ function toUserMessage(error) {
   const code = String((error && error.message) || error || "UNKNOWN_ERROR");
   if (code.startsWith("MISSING_TOKEN")) return "请先在设置页填写墨墨开放 API Token。";
   if (code.startsWith("MISSING_CURRENT_NOTEPAD")) return "请先在设置页选择当前云词本。";
-  if (code.startsWith("INVALID_WORD")) return "请先选中一个英文单词，再使用右键菜单。";
+  if (code.startsWith("INVALID_WORD")) return "请先选中一个英文单词或词组。";
   if (code.startsWith("NOTEPAD_NOT_FOUND")) return "当前云词本不存在，请重新选择。";
   if (code.startsWith("common_unauthorized")) return "墨墨开放 API Token 无效或已失效，请重新保存。";
   if (code.startsWith("common_not_found")) return "当前云词本不存在或已被删除，请重新选择。";

@@ -58,16 +58,31 @@ export async function requestJSON(url, { method = "GET", headers, body } = {}) {
 }
 
 export function normalizeWord(rawWord) {
-  const matches = String(rawWord || "")
+  const normalized = String(rawWord || "")
     .trim()
     .replace(/[’]/g, "'")
-    .match(/[A-Za-z]+(?:['-][A-Za-z]+)*/g);
+    .replace(/\s+/g, " ");
 
-  if (!matches || matches.length !== 1) return "";
-  return matches[0].toLowerCase();
+  if (!normalized) return "";
+  if (!/^[A-Za-z]+(?:['-][A-Za-z]+)*(?: [A-Za-z]+(?:['-][A-Za-z]+)*)*$/.test(normalized)) {
+    return "";
+  }
+
+  return normalized.toLowerCase();
 }
 
 export function extractWordsFromNotepad(notepad) {
+  if (notepad && typeof notepad.content === "string") {
+    const contentWords = notepad.content
+      .split(/\r?\n/)
+      .map(line => normalizeWord(line))
+      .filter(Boolean);
+
+    if (contentWords.length) {
+      return Array.from(new Set(contentWords));
+    }
+  }
+
   const words = [];
   const parsedItems = notepad && Array.isArray(notepad.list) ? notepad.list : [];
 
@@ -76,16 +91,6 @@ export function extractWordsFromNotepad(notepad) {
     const normalized = normalizeWord(item && item.data ? item.data.word : "");
     if (normalized) words.push(normalized);
   });
-
-  if (words.length) return Array.from(new Set(words));
-
-  if (notepad && typeof notepad.content === "string") {
-    notepad.content
-      .split(/\r?\n/)
-      .map(line => normalizeWord(line))
-      .filter(Boolean)
-      .forEach(word => words.push(word));
-  }
 
   return Array.from(new Set(words));
 }
@@ -197,20 +202,32 @@ export async function appendWordToNotepad(client, notepadId, rawWord) {
   }
 
   const nextContent = String(current.content || "").trimEnd();
+  const mergedContent = nextContent ? `${nextContent}\n${word}` : word;
   const updated = await updateNotepad(client, notepadId, {
     status: current.status || "PUBLISHED",
     title: current.title || "",
     brief: current.brief || "",
     tags: Array.isArray(current.tags) ? current.tags : [],
-    content: nextContent ? `${nextContent}\n${word}` : word
+    content: mergedContent
   });
 
-  const nextWords = extractWordsFromNotepad(updated || current).concat(word);
+  // Some update responses only return summary metadata instead of the full
+  // notepad body. Rebuild the next cache from the pre-update detail plus the
+  // appended content so we never collapse the local cache down to just the
+  // newest term.
+  const nextNotepadSnapshot = {
+    ...(current || {}),
+    ...(updated || {}),
+    content: typeof (updated && updated.content) === "string" && updated.content.trim()
+      ? updated.content
+      : mergedContent
+  };
+  const nextWords = extractWordsFromNotepad(nextNotepadSnapshot);
 
   return {
     word,
     alreadyExists: false,
-    notepad: updated || current,
+    notepad: nextNotepadSnapshot,
     words: Array.from(new Set(nextWords))
   };
 }

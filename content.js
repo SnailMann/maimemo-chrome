@@ -27,10 +27,12 @@ const HAS_LETTER_PATTERN = /[A-Za-z]/;
 let currentStoredWordSet = new Set();
 let currentBlacklistSet = new Set();
 let currentWordSet = new Set();
+let optimisticWordSet = new Set();
 let isRendering = false;
 let observer = null;
 let toastTimer = null;
 const pendingRoots = new Set();
+const pendingActionKeys = new Set();
 let flushTimer = null;
 let fullRenderTimer = null;
 let selectionActions = null;
@@ -51,8 +53,10 @@ function toNormalizedSet(words) {
 }
 
 function recomputeHighlightWordSet() {
+  const mergedWordSet = new Set(currentStoredWordSet);
+  optimisticWordSet.forEach((word) => mergedWordSet.add(word));
   currentWordSet = new Set(
-    Array.from(currentStoredWordSet).filter(word => !currentBlacklistSet.has(word))
+    Array.from(mergedWordSet).filter(word => !currentBlacklistSet.has(word))
   );
 }
 
@@ -64,6 +68,20 @@ function setStoredWords(words) {
 function setHighlightBlacklist(words) {
   currentBlacklistSet = toNormalizedSet(words);
   recomputeHighlightWordSet();
+}
+
+function syncOptimisticWords() {
+  let changed = false;
+
+  optimisticWordSet.forEach((word) => {
+    if (!currentStoredWordSet.has(word)) return;
+    optimisticWordSet.delete(word);
+    changed = true;
+  });
+
+  if (changed) {
+    recomputeHighlightWordSet();
+  }
 }
 
 function throttle(fn, wait) {
@@ -332,6 +350,15 @@ function getSelectionRect() {
   return rects && rects.length ? rects[0] : null;
 }
 
+function getSelectionHighlightRoot() {
+  const selection = window.getSelection();
+  if (!selection || !selection.rangeCount) return document.body;
+
+  const container = selection.getRangeAt(0).commonAncestorContainer;
+  if (!container) return document.body;
+  return container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
+}
+
 function getSelectionActions() {
   if (selectionActions) return selectionActions;
 
@@ -362,13 +389,6 @@ function hideSelectionActions() {
   const container = getSelectionActions();
   container.hidden = true;
   delete container.dataset.word;
-}
-
-function setSelectionActionsBusy(isBusy) {
-  const container = getSelectionActions();
-  container.querySelectorAll("button").forEach((button) => {
-    button.disabled = isBusy;
-  });
 }
 
 function positionSelectionActions(rect) {
@@ -407,18 +427,71 @@ function showSelectionActions(word, rect) {
     muteButton.textContent = currentBlacklistSet.has(word) ? "已不标记" : "不再标记";
   }
 
-  setSelectionActionsBusy(false);
   positionSelectionActions(rect);
 }
 
-async function sendActionMessage(type, word) {
-  try {
-    const response = await chrome.runtime.sendMessage({
-      type,
-      payload: { word }
-    });
+function getPendingActionKey(type, word) {
+  return `${type}:${word}`;
+}
 
+function getPendingActionMessage(type, word) {
+  if (type === "ADD_WORD_TO_CURRENT_NOTEPAD") {
+    return `正在添加 “${word}”...`;
+  }
+
+  if (type === "ADD_WORD_TO_HIGHLIGHT_BLACKLIST") {
+    return `正在设置 “${word}” 为不标记...`;
+  }
+
+  return "正在处理...";
+}
+
+function addOptimisticWord(word, root) {
+  if (!word || currentStoredWordSet.has(word) || optimisticWordSet.has(word)) {
+    return;
+  }
+
+  optimisticWordSet.add(word);
+  recomputeHighlightWordSet();
+  addPendingRoot(root || document.body);
+}
+
+function removeOptimisticWord(word, { rerender = false } = {}) {
+  if (!optimisticWordSet.delete(word)) return;
+  recomputeHighlightWordSet();
+  if (rerender) {
+    scheduleFullRender();
+  }
+}
+
+function sendActionMessage(type, word) {
+  const key = getPendingActionKey(type, word);
+  const optimisticRoot = type === "ADD_WORD_TO_CURRENT_NOTEPAD"
+    ? getSelectionHighlightRoot()
+    : null;
+
+  if (type === "ADD_WORD_TO_CURRENT_NOTEPAD") {
+    addOptimisticWord(word, optimisticRoot);
+  }
+
+  hideSelectionActions();
+
+  if (pendingActionKeys.has(key)) {
+    showToast("这条操作正在处理中，请稍候。", "info");
+    return;
+  }
+
+  pendingActionKeys.add(key);
+  showToast(getPendingActionMessage(type, word), "info");
+
+  chrome.runtime.sendMessage({
+    type,
+    payload: { word }
+  }).then((response) => {
     if (!response || !response.ok) {
+      if (type === "ADD_WORD_TO_CURRENT_NOTEPAD") {
+        removeOptimisticWord(word, { rerender: true });
+      }
       showToast(
         response && response.userMessage
           ? response.userMessage
@@ -429,11 +502,14 @@ async function sendActionMessage(type, word) {
     }
 
     showToast(response.userMessage || "操作成功。", response.alreadyExists ? "info" : "success");
-  } catch {
+  }).catch(() => {
+    if (type === "ADD_WORD_TO_CURRENT_NOTEPAD") {
+      removeOptimisticWord(word, { rerender: true });
+    }
     showToast("操作失败，请稍后再试。", "error");
-  } finally {
-    hideSelectionActions();
-  }
+  }).finally(() => {
+    pendingActionKeys.delete(key);
+  });
 }
 
 function getToastContainer() {
@@ -512,9 +588,9 @@ function handlePointerDown(event) {
 function bindSelectionActions() {
   const container = getSelectionActions();
 
-  container.addEventListener("click", async (event) => {
+  container.addEventListener("click", (event) => {
     const button = event.target.closest("button");
-    if (!button || button.disabled) return;
+    if (!button) return;
 
     const word = container.dataset.word || "";
     if (!word) {
@@ -522,15 +598,13 @@ function bindSelectionActions() {
       return;
     }
 
-    setSelectionActionsBusy(true);
-
     if (button.dataset.action === "add") {
-      await sendActionMessage("ADD_WORD_TO_CURRENT_NOTEPAD", word);
+      sendActionMessage("ADD_WORD_TO_CURRENT_NOTEPAD", word);
       return;
     }
 
     if (button.dataset.action === "blacklist") {
-      await sendActionMessage("ADD_WORD_TO_HIGHLIGHT_BLACKLIST", word);
+      sendActionMessage("ADD_WORD_TO_HIGHLIGHT_BLACKLIST", word);
     }
   });
 
@@ -557,6 +631,7 @@ async function init() {
 
     if (hasWordsChange) {
       setStoredWords(changes[STORAGE_KEYS.words].newValue);
+      syncOptimisticWords();
     }
 
     if (hasBlacklistChange) {

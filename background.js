@@ -3,6 +3,7 @@ import { DEFAULT_SETTINGS, STORAGE_KEYS, normalizeSettings, normalizeStoredWords
 
 const CONTEXT_MENU_ID = "maimemo-add-to-current-notepad";
 const PERIODIC_SYNC_ALARM = "maimemo-sync-current-notepad";
+let currentNotepadJobChain = Promise.resolve();
 
 function removeAllContextMenus() {
   return new Promise((resolve) => {
@@ -14,6 +15,15 @@ function createContextMenu(options) {
   return new Promise((resolve) => {
     chrome.contextMenus.create(options, () => resolve());
   });
+}
+
+function runCurrentNotepadJob(job) {
+  const queued = currentNotepadJobChain
+    .catch(() => {})
+    .then(job);
+
+  currentNotepadJobChain = queued.catch(() => {});
+  return queued;
 }
 
 async function getSettings() {
@@ -148,7 +158,7 @@ async function ensureContextMenu() {
   });
 }
 
-async function syncCurrentNotepad() {
+async function syncCurrentNotepadNow() {
   const settings = await getSettings();
   if (!settings.maimemoToken) throw new Error("MISSING_TOKEN");
   if (!settings.currentNotepadId) throw new Error("MISSING_CURRENT_NOTEPAD");
@@ -175,7 +185,11 @@ async function syncCurrentNotepad() {
   };
 }
 
-async function addWordToCurrentNotepad(rawWord) {
+async function syncCurrentNotepad() {
+  return runCurrentNotepadJob(() => syncCurrentNotepadNow());
+}
+
+async function addWordToCurrentNotepadNow(rawWord) {
   const settings = await getSettings();
   if (!settings.maimemoToken) throw new Error("MISSING_TOKEN");
   if (!settings.currentNotepadId) throw new Error("MISSING_CURRENT_NOTEPAD");
@@ -204,6 +218,10 @@ async function addWordToCurrentNotepad(rawWord) {
     words: cache.words,
     lastSync: cache.lastSync
   };
+}
+
+async function addWordToCurrentNotepad(rawWord) {
+  return runCurrentNotepadJob(() => addWordToCurrentNotepadNow(rawWord));
 }
 
 async function getOptionsState() {
@@ -261,6 +279,11 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (!info || info.menuItemId !== CONTEXT_MENU_ID) return;
 
   try {
+    const pendingWord = normalizeWord(info.selectionText || "");
+    if (pendingWord) {
+      notifyTab(tab && tab.id, `正在添加 “${pendingWord}”...`, "info");
+    }
+
     const result = await addWordToCurrentNotepad(info.selectionText || "");
     notifyTab(
       tab && tab.id,
@@ -373,6 +396,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         const result = await addWordToCurrentNotepad(message.payload && message.payload.word);
         sendResponse({
           ok: true,
+          words: result.words,
+          lastSync: result.lastSync,
           word: result.word,
           alreadyExists: result.alreadyExists,
           userMessage: result.alreadyExists

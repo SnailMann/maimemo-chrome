@@ -3,7 +3,18 @@
 > 基于墨墨背单词的 Chrome 扩展。  
 > 在网页中选中英文单词后，可以一键加入墨墨云词本，并对当前云词本中的单词进行本地高亮。
 > 本项目是基于墨墨开放 API 构建的第三方开源工具，仅用于学习和研究。
-![设置页](./docs/images/setting.png)![高亮与添加单词](./docs/images/highlight.png)
+
+<table>
+  <tr>
+    <td align="center">
+      <img src="./docs/images/setting.png" alt="设置页" width="100%" />
+    </td>
+    <td align="center">
+      <img src="./docs/images/option.png" alt="高亮与添加单词" width="100%" />
+    </td>
+  </tr>
+</table>
+
 ## 功能
 
 - 右键把选中的单词或词组加入当前云词本

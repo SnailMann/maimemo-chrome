@@ -68,9 +68,17 @@ maimemo-chrome/
 ├── background.js
 ├── content.js
 ├── content.css
+├── icons/
+│   ├── icon.svg
+│   ├── icon16.png
+│   ├── icon32.png
+│   ├── icon48.png
+│   └── icon128.png
 ├── options.html
 ├── options.js
 ├── maimemo.js
+├── scripts/
+│   └── generate_icons.py
 ├── shared.js
 └── docs/images/
 ```

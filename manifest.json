@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "墨墨背单词",
-  "short_name": "墨墨",
+  "name": "墨墨背单词-chrome",
+  "short_name": "墨墨背单词-chrome",
   "description": "maimemo-chrome：右键添加单词到当前云词本，并高亮当前云词本中的单词。",
   "version": "0.1.0",
   "icons": {
